@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b5bdb">
+  <title>My Notes &amp; Tasks App</title>
+  <style>
+    :root {
+      --bg: #eef1f6;
+      --card: #ffffff;
+      --text: #1b2433;
+      --grey: #667086;
+      --line: #d8dee9;
+      --blue: #3b5bdb;
+      --red: #c92a2a;
+      --field-bg: #ffffff;
+      --button-light-bg: #e9ecf3;
+      --note-bg: #fff3bf;
+      --danger-bg: #ffe3e3;
+      --shadow: 0 1px 2px rgba(20, 30, 50, 0.04);
+    }
+    body[data-theme="dark"] {
+      --bg: #111827;
+      --card: #1f2937;
+      --text: #e5e7eb;
+      --grey: #a5afc0;
+      --line: #374151;
+      --blue: #718cff;
+      --red: #ff8585;
+      --field-bg: #111827;
+      --button-light-bg: #374151;
+      --note-bg: #4a4020;
+      --danger-bg: #4a2529;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: Arial, sans-serif; line-height: 1.5;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px 14px 50px; }
+    .theme-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+    .theme-toggle { margin: 0; background: var(--button-light-bg); color: var(--text); }
+    .theme-toggle .theme-icon { margin-right: 6px; }
+    h1, h2, h3 { margin: 0; overflow-wrap: anywhere; }
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 16px; margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    input, textarea {
+      width: 100%; padding: 11px; margin-top: 8px;
+      border: 1px solid var(--line); border-radius: 8px;
+      font-size: 16px; font-family: inherit;
+      background: var(--field-bg); color: var(--text);
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    button {
+      background: var(--blue); color: #fff; border: 0; border-radius: 8px;
+      padding: 10px 16px; font-size: 15px; cursor: pointer; margin-top: 10px;
+    }
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid #9bb1ff; outline-offset: 2px;
+    }
+    button.light { background: var(--button-light-bg); color: var(--text); }
+    button.small { padding: 5px 10px; font-size: 13px; margin: 8px 6px 0 0; }
+    button.danger { background: var(--danger-bg); color: var(--red); }
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .tabs button { flex: 1; margin: 0; background: var(--button-light-bg); color: var(--text); }
+    .tabs button.active { background: var(--blue); color: #fff; }
+    .top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px; gap: 10px;
+    }
+    .top button { margin: 0; flex-shrink: 0; }
+    .message { color: var(--red); margin-top: 10px; min-height: 20px; font-size: 14px; }
+    .hidden { display: none !important; }
+    .note { background: var(--note-bg); }
+    .item p { white-space: pre-wrap; margin: 6px 0 0; overflow-wrap: anywhere; }
+    .done h3 { text-decoration: line-through; color: var(--grey); }
+    .task-row { display: flex; gap: 10px; align-items: flex-start; }
+    .task-row input { width: 22px; height: 22px; margin: 3px 0 0; flex-shrink: 0; }
+    .task-row > div { min-width: 0; }
+    .empty { text-align: center; color: var(--grey); padding: 24px; }
+    .hint { color: var(--grey); font-size: 13px; margin-top: 8px; }
+    @media (max-width: 420px) {
+      .top { align-items: flex-start; }
+      .top h2 { font-size: 20px; }
+      .top button { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="theme-bar">
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Switch to dark mode" title="Switch theme">
+        <span class="theme-icon" aria-hidden="true">🌙</span><span id="themeToggleText">Dark mode</span>
+      </button>
+    </div>
+    <section id="loginScreen">
+      <h1 style="text-align:center; margin:20px 0;">📝 Notes &amp; Tasks</h1>
+      <div class="tabs" aria-label="Account options">
+        <button type="button" id="showLogin" class="active" aria-selected="true">Log in</button>
+        <button type="button" id="showSignup" aria-selected="false">Sign up</button>
+      </div>
+
+      <form id="loginForm" class="card">
+        <h2>Welcome back</h2>
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" placeholder="Email" required>
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password" required>
+        <button type="submit">Log in</button>
+        <div class="message" id="loginMessage" role="status" aria-live="polite"></div>
+      </form>
+
+      <form id="signupForm" class="card hidden">
+        <h2>Create your account</h2>
+        <label for="signupName">Your name</label>
+        <input type="text" id="signupName" autocomplete="name" placeholder="Your name" maxlength="80" required>
+        <label for="signupEmail">Email</label>
+        <input type="email" id="signupEmail" autocomplete="username" placeholder="Email" required>
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" autocomplete="new-password" placeholder="Password (at least 8 characters)" minlength="8" required>
+        <label for="signupConfirm">Confirm password</label>
+        <input type="password" id="signupConfirm" autocomplete="new-password" placeholder="Type the password again" required>
+        <button type="submit">Create account</button>
+        <div class="message" id="signupMessage" role="status" aria-live="polite"></div>
+        <p class="hint">Demo app: your information is stored in this browser on this device.</p>
+      </form>
+    </section>
+
+    <section id="appScreen" class="hidden">
+      <div class="top">
+        <h2 id="welcomeText">Hello!</h2>
+        <button type="button" id="logoutBtn" class="light">Log out</button>
+      </div>
+
+      <div class="tabs" aria-label="App sections">
+        <button type="button" id="showNotes" class="active" aria-selected="true">Notes</button>
+        <button type="button" id="showTasks" aria-selected="false">Tasks</button>
+      </div>
+
+      <section id="notesSection" aria-label="Notes">
+        <form id="noteForm" class="card">
+          <h2 id="noteFormHeading" class="hidden">Edit note</h2>
+          <label for="noteTitle">Note title</label>
+          <input type="text" id="noteTitle" placeholder="Note title" maxlength="160" required>
+          <label for="noteBody">Note</label>
+          <textarea id="noteBody" placeholder="Write your note here..." maxlength="20000"></textarea>
+          <button type="submit" id="noteSaveBtn">Add note</button>
+          <button type="button" id="noteCancelBtn" class="light hidden">Cancel</button>
+        </form>
+        <div id="noteList" aria-live="polite"></div>
+      </section>
+
+      <section id="tasksSection" class="hidden" aria-label="Tasks">
+        <form id="taskForm" class="card">
+          <h2 id="taskFormHeading" class="hidden">Edit task</h2>
+          <label for="taskTitle">Task title</label>
+          <input type="text" id="taskTitle" placeholder="Task title" maxlength="160" required>
+          <label for="taskBody">Details</label>
+          <textarea id="taskBody" placeholder="Details (optional)" maxlength="20000"></textarea>
+          <button type="submit" id="taskSaveBtn">Add task</button>
+          <button type="button" id="taskCancelBtn" class="light hidden">Cancel</button>
+        </form>
+        <div id="taskList" aria-live="polite"></div>
+      </section>
+    </section>
+  </main>
+
+<script>
+"use strict";
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+/* Theme preference is remembered in this browser. */
+function applyTheme(theme) {
+  const dark = theme === "dark";
+  document.body.setAttribute("data-theme", dark ? "dark" : "light");
+  $("themeToggleText").textContent = dark ? "Light mode" : "Dark mode";
+  $("themeToggle").setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  $("themeToggle").querySelector(".theme-icon").textContent = dark ? "☀️" : "🌙";
+}
+
+let currentTheme = readThemePreference();
+function readThemePreference() {
+  try {
+    const saved = localStorage.getItem("app.theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch (error) {
+    // Storage may be unavailable; use the default light theme.
+  }
+  return "light";
+}
+
+applyTheme(currentTheme);
+$("themeToggle").addEventListener("click", function () {
+  currentTheme = currentTheme === "dark" ? "light" : "dark";
+  applyTheme(currentTheme);
+  try {
+    localStorage.setItem("app.theme", currentTheme);
+  } catch (error) {
+    // Theme still changes for this page session if storage is blocked.
+  }
+});
+
+/*
+ * This is a browser-only learning app. localStorage is not a secure
+ * account database. Anyone with access to this browser profile may
+ * be able to inspect or change stored data.
+ */
+function readStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error("Could not read browser storage:", error);
+    return fallback;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.error("Could not write browser storage:", error);
+    alert("Could not save your changes. Browser storage may be blocked or full.");
+    return false;
+  }
+}
+
+function removeStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error("Could not remove browser storage:", error);
+  }
+}
+
+let currentEmail = null;
+let notes = [];
+let tasks = [];
+let editingNoteId = null;
+let editingTaskId = null;
+
+/* A random per-user salt plus PBKDF2 is better than a plain SHA-256 hash.
+   It still does not replace server-side authentication for real accounts. */
+function bytesToHex(bytes) {
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function randomSalt() {
+  if (!window.crypto || !window.crypto.getRandomValues) {
+    throw new Error("Secure random number generation is not available in this browser.");
+  }
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+async function makePasswordHash(password, salt) {
+  if (!window.crypto || !window.crypto.subtle || !window.TextEncoder) {
+    throw new Error("Secure password hashing is unavailable. Open this app in a modern browser using HTTPS or localhost.");
+  }
+  const encoder = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits = await window.crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    salt: encoder.encode(salt),
+    iterations: 210000,
+    hash: "SHA-256"
+  }, keyMaterial, 256);
+  return bytesToHex(new Uint8Array(bits));
+}
+
+function showLoginTab(isLogin) {
+  $("loginForm").classList.toggle("hidden", !isLogin);
+  $("signupForm").classList.toggle("hidden", isLogin);
+  $("showLogin").classList.toggle("active", isLogin);
+  $("showSignup").classList.toggle("active", !isLogin);
+  $("showLogin").setAttribute("aria-selected", String(isLogin));
+  $("showSignup").setAttribute("aria-selected", String(!isLogin));
+  $("loginMessage").textContent = "";
+  $("signupMessage").textContent = "";
+}
+
+function showAppTab(isNotes) {
+  $("notesSection").classList.toggle("hidden", !isNotes);
+  $("tasksSection").classList.toggle("hidden", isNotes);
+  $("showNotes").classList.toggle("active", isNotes);
+  $("showTasks").classList.toggle("active", !isNotes);
+  $("showNotes").setAttribute("aria-selected", String(isNotes));
+  $("showTasks").setAttribute("aria-selected", String(!isNotes));
+}
+
+function normaliseUserData(data) {
+  const validNotes = Array.isArray(data && data.notes) ? data.notes : [];
+  const validTasks = Array.isArray(data && data.tasks) ? data.tasks : [];
+  return {
+    notes: validNotes.filter(n => n && (typeof n.id === "string" || typeof n.id === "number"))
+      .map(n => ({ id: n.id, title: String(n.title || ""), body: String(n.body || "") })),
+    tasks: validTasks.filter(t => t && (typeof t.id === "string" || typeof t.id === "number"))
+      .map(t => ({ id: t.id, title: String(t.title || ""), body: String(t.body || ""), done: Boolean(t.done) }))
+  };
+}
+
+function openApp(email) {
+  currentEmail = email;
+  const users = readStorage("app.users", []);
+  const user = Array.isArray(users) ? users.find(u => u && u.email === email) : null;
+  if (!user) {
+    closeApp();
+    return;
+  }
+
+  if (!writeStorage("app.currentUser", email)) {
+    currentEmail = null;
+    return;
+  }
+
+  $("welcomeText").textContent = "Hello, " + String(user.name || "friend") + "!";
+  const data = normaliseUserData(readStorage("app.data." + email, { notes: [], tasks: [] }));
+  notes = data.notes;
+  tasks = data.tasks;
+  stopEditNote();
+  stopEditTask();
+  $("loginScreen").classList.add("hidden");
+  $("appScreen").classList.remove("hidden");
+  showAppTab(true);
+  drawNotes();
+  drawTasks();
+}
+
+function closeApp() {
+  currentEmail = null;
+  removeStorage("app.currentUser");
+  notes = [];
+  tasks = [];
+  stopEditNote();
+  stopEditTask();
+  $("appScreen").classList.add("hidden");
+  $("loginScreen").classList.remove("hidden");
+  $("loginForm").reset();
+  $("signupForm").reset();
+  showLoginTab(true);
+  drawNotes();
+  drawTasks();
+}
+
+function saveData() {
+  if (!currentEmail) return false;
+  return writeStorage("app.data." + currentEmail, { notes, tasks });
+}
+
+function makeId() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+}
+
+$("signupForm").addEventListener("submit", async function (event) {
+  event.preventDefault();
+  const name = $("signupName").value.trim();
+  const email = $("signupEmail").value.trim().toLowerCase();
+  const password = $("signupPassword").value;
+  const confirmPassword = $("signupConfirm").value;
+  const message = $("signupMessage");
+  message.textContent = "";
+
+  if (!name) {
+    message.textContent = "Please enter your name.";
+    return;
+  }
+  if (password.length < 8) {
+    message.textContent = "Password must have at least 8 characters.";
+    return;
+  }
+  if (password !== confirmPassword) {
+    message.textContent = "The two passwords do not match.";
+    return;
+  }
+
+  const users = readStorage("app.users", []);
+  if (!Array.isArray(users)) {
+    message.textContent = "Saved account data is invalid. Clear the demo app's stored data and try again.";
+    return;
+  }
+  if (users.some(user => user && user.email === email)) {
+    message.textContent = "This email already has an account. Please log in.";
+    return;
+  }
+
+  try {
+    const salt = randomSalt();
+    const passwordHash = await makePasswordHash(password, salt);
+    users.push({ name, email, salt, passwordHash });
+    if (!writeStorage("app.users", users)) {
+      message.textContent = "Account could not be saved. Check your browser storage.";
+      return;
+    }
+    if (!writeStorage("app.data." + email, { notes: [], tasks: [] })) {
+      message.textContent = "Account created, but its data could not be initialized. Check browser storage.";
+      return;
+    }
+    $("signupForm").reset();
+    openApp(email);
+  } catch (error) {
+    console.error(error);
+    message.textContent = error.message || "Could not create the account.";
+  }
+});
+
+$("loginForm").addEventListener("submit", async function (event) {
+  event.preventDefault();
+  const email = $("loginEmail").value.trim().toLowerCase();
+  const password = $("loginPassword").value;
+  const message = $("loginMessage");
+  message.textContent = "";
+
+  const users = readStorage("app.users", []);
+  const user = Array.isArray(users) ? users.find(u => u && u.email === email) : null;
+  if (!user) {
+    message.textContent = "Wrong email or password.";
+    return;
+  }
+
+  try {
+    let hash;
+    if (user.salt && user.passwordHash) {
+      hash = await makePasswordHash(password, user.salt);
+    } else if (user.passwordHash) {
+      // Compatibility with accounts made by the original SHA-256 version.
+      // After a successful login, upgrade that account to salted PBKDF2.
+      const buffer = await crypto.subtle.digest(
+        "SHA-256", new TextEncoder().encode("notes-app-salt:" + password)
+      );
+      hash = bytesToHex(new Uint8Array(buffer));
+      if (hash !== user.passwordHash) {
+        message.textContent = "Wrong email or password.";
+        return;
+      }
+      const salt = randomSalt();
+      user.salt = salt;
+      user.passwordHash = await makePasswordHash(password, salt);
+      if (!writeStorage("app.users", users)) {
+        message.textContent = "Signed in, but password storage could not be upgraded.";
+        return;
+      }
+      $("loginForm").reset();
+      openApp(email);
+      return;
+    } else {
+      message.textContent = "This account's saved credentials are invalid.";
+      return;
+    }
+
+    if (hash !== user.passwordHash) {
+      message.textContent = "Wrong email or password.";
+      return;
+    }
+    $("loginForm").reset();
+    openApp(email);
+  } catch (error) {
+    console.error(error);
+    message.textContent = error.message || "Could not log in.";
+  }
+});
+
+$("logoutBtn").addEventListener("click", closeApp);
+
+function makeButton(label, extraClass, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.className = "small " + extraClass;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function drawNotes() {
+  const list = $("noteList");
+  list.replaceChildren();
+
+  if (notes.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No notes yet. Write your first note above.";
+    list.appendChild(empty);
+    return;
+  }
+
+  notes.forEach(note => {
+    const card = document.createElement("article");
+    card.className = "card note item";
+    const title = document.createElement("h3");
+    title.textContent = note.title;
+    const body = document.createElement("p");
+    body.textContent = note.body;
+    card.append(title, body);
+    card.appendChild(makeButton("Edit", "light", () => startEditNote(note)));
+    card.appendChild(makeButton("Delete", "danger", () => deleteNote(note.id)));
+    list.appendChild(card);
+  });
+}
+
+function drawTasks() {
+  const list = $("taskList");
+  list.replaceChildren();
+
+  if (tasks.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No tasks yet. Add your first task above.";
+    list.appendChild(empty);
+    return;
+  }
+
+  tasks.forEach(task => {
+    const card = document.createElement("article");
+    card.className = "card item" + (task.done ? " done" : "");
+    const row = document.createElement("div");
+    row.className = "task-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = task.done;
+    checkbox.setAttribute("aria-label", "Mark " + task.title + " as complete");
+    checkbox.addEventListener("change", function () {
+      const savedTask = tasks.find(t => t.id === task.id);
+      if (!savedTask) return;
+      savedTask.done = checkbox.checked;
+      if (saveData()) drawTasks();
+    });
+
+    const textPart = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = task.title;
+    const body = document.createElement("p");
+    body.textContent = task.body;
+    textPart.append(title, body);
+    row.append(checkbox, textPart);
+    card.appendChild(row);
+    card.appendChild(makeButton("Edit", "light", () => startEditTask(task)));
+    card.appendChild(makeButton("Delete", "danger", () => deleteTask(task.id)));
+    list.appendChild(card);
+  });
+}
+
+$("noteForm").addEventListener("submit", function (event) {
+  event.preventDefault();
+  if (!currentEmail) return;
+  const title = $("noteTitle").value.trim();
+  const body = $("noteBody").value.trim();
+  if (!title) return;
+
+  if (editingNoteId === null) {
+    notes.unshift({ id: makeId(), title, body });
+  } else {
+    const note = notes.find(n => n.id === editingNoteId);
+    if (!note) {
+      stopEditNote();
+      drawNotes();
+      return;
+    }
+    note.title = title;
+    note.body = body;
+  }
+  if (saveData()) {
+    stopEditNote();
+    drawNotes();
+  }
+});
+
+function startEditNote(note) {
+  editingNoteId = note.id;
+  $("noteTitle").value = note.title;
+  $("noteBody").value = note.body;
+  $("noteSaveBtn").textContent = "Save changes";
+  $("noteCancelBtn").classList.remove("hidden");
+  $("noteFormHeading").classList.remove("hidden");
+  $("noteTitle").focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function stopEditNote() {
+  editingNoteId = null;
+  $("noteForm").reset();
+  $("noteSaveBtn").textContent = "Add note";
+  $("noteCancelBtn").classList.add("hidden");
+  $("noteFormHeading").classList.add("hidden");
+}
+
+$("noteCancelBtn").addEventListener("click", stopEditNote);
+
+function deleteNote(id) {
+  if (!confirm("Delete this note?")) return;
+  notes = notes.filter(note => note.id !== id);
+  if (editingNoteId === id) stopEditNote();
+  if (saveData()) drawNotes();
+}
+
+$("taskForm").addEventListener("submit", function (event) {
+  event.preventDefault();
+  if (!currentEmail) return;
+  const title = $("taskTitle").value.trim();
+  const body = $("taskBody").value.trim();
+  if (!title) return;
+
+  if (editingTaskId === null) {
+    tasks.unshift({ id: makeId(), title, body, done: false });
+  } else {
+    const task = tasks.find(t => t.id === editingTaskId);
+    if (!task) {
+      stopEditTask();
+      drawTasks();
+      return;
+    }
+    task.title = title;
+    task.body = body;
+  }
+  if (saveData()) {
+    stopEditTask();
+    drawTasks();
+  }
+});
+
+function startEditTask(task) {
+  editingTaskId = task.id;
+  $("taskTitle").value = task.title;
+  $("taskBody").value = task.body;
+  $("taskSaveBtn").textContent = "Save changes";
+  $("taskCancelBtn").classList.remove("hidden");
+  $("taskFormHeading").classList.remove("hidden");
+  $("taskTitle").focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function stopEditTask() {
+  editingTaskId = null;
+  $("taskForm").reset();
+  $("taskSaveBtn").textContent = "Add task";
+  $("taskCancelBtn").classList.add("hidden");
+  $("taskFormHeading").classList.add("hidden");
+}
+
+$("taskCancelBtn").addEventListener("click", stopEditTask);
+
+function deleteTask(id) {
+  if (!confirm("Delete this task?")) return;
+  tasks = tasks.filter(task => task.id !== id);
+  if (editingTaskId === id) stopEditTask();
+  if (saveData()) drawTasks();
+}
+
+$("showLogin").addEventListener("click", () => showLoginTab(true));
+$("showSignup").addEventListener("click", () => showLoginTab(false));
+$("showNotes").addEventListener("click", () => showAppTab(true));
+$("showTasks").addEventListener("click", () => showAppTab(false));
+
+/* Restore the last session if its account still exists. */
+const savedEmail = readStorage("app.currentUser", null);
+const allUsers = readStorage("app.users", []);
+const stillExists = Array.isArray(allUsers) &&
+  allUsers.some(user => user && user.email === savedEmail);
+
+if (savedEmail && stillExists) {
+  openApp(savedEmail);
+} else {
+  removeStorage("app.currentUser");
+  showLoginTab(true);
+  drawNotes();
+  drawTasks();
+}
+</script>
+</body>
+</html>
